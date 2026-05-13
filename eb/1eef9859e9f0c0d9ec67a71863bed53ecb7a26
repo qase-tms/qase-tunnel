@@ -1,0 +1,93 @@
+internal/translate/patterns.go
+  715900a013b326b4 1-133
+internal/buildinfo/buildinfo_test.go
+  715900a013b326b4 1-40
+internal/keystore/keystore_test.go
+  715900a013b326b4 1-186
+internal/transport/frpc/testdata/golden_tcp.toml
+  s_715900a013b326::t_a5c09d2195188c 4
+  715900a013b326b4 1-3,5-16
+internal/api/client.go
+  715900a013b326b4 1-98
+internal/transport/frpc/config_test.go
+  s_715900a013b326::t_e2f116a0515402 72-87
+  715900a013b326b4 1-71,88-157
+internal/transport/frpc/testdata/golden_quic.toml
+  715900a013b326b4 1-3,5-16
+  s_715900a013b326::t_7802cf1cda8817 4
+internal/api/client_test.go
+  715900a013b326b4 1-81
+internal/cli/cli.go
+  s_715900a013b326::t_74ab4d229578f2 168
+  s_715900a013b326::t_f4f3c6b6d435d1 118,122-127,135-148
+  715900a013b326b4 1-117,119-121,128-134,149-167,169-210,212-213,215-229,231-232,234-240,242-243,245-269,271-272,274-282,284-330
+  s_715900a013b326::t_792b18d646941f 211,214,230,233,241,244
+  s_715900a013b326::t_c4e28f77d5dcdd 270,273,283
+cmd/qase-tunnel/main.go
+  715900a013b326b4 1-114
+internal/transport/frpc/lifecycle_test.go
+  715900a013b326b4 1-80,105-251
+  s_715900a013b326::t_7dc579a59f7880 81-104
+internal/transport/frpc/config.go
+  715900a013b326b4 1-84,90-124,130-200
+  s_715900a013b326::t_229bef4581649e 85-89
+  s_715900a013b326::t_8a9d58874345d3 125-129
+.github/workflows/release.yml
+  715900a013b326b4 1-190
+internal/buildinfo/buildinfo.go
+  715900a013b326b4 1-40
+Makefile
+  715900a013b326b4 1-54
+internal/transport/frpc/lifecycle.go
+  s_715900a013b326::t_63091fe7b30ddb 9
+  715900a013b326b4 1-8,10-146,150-158,171-220
+  s_715900a013b326::t_98f0e3d1531f1e 147-149,159-170
+internal/wizard/wizard_test.go
+  715900a013b326b4 1-202
+go.mod
+  715900a013b326b4 1-7,15
+internal/wizard/wizard.go
+  715900a013b326b4 1-104
+internal/keystore/keystore.go
+  715900a013b326b4 1-275
+internal/update/update_test.go
+  715900a013b326b4 1-248
+internal/cli/cli_test.go
+  715900a013b326b4 1-126,177-475
+  s_715900a013b326::t_cb95505a3be331 127-176
+internal/update/update.go
+  715900a013b326b4 1-285
+internal/cli/runner.go
+  715900a013b326b4 1-37
+internal/translate/patterns_test.go
+  715900a013b326b4 1-184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "eb1eef9859e9f0c0d9ec67a71863bed53ecb7a26",
+  "prompts": {
+    "715900a013b326b4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6429d81f-85ac-40ef-a49a-12d9a679d95f",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Nikolay Pisarev <npisarev@qase.io>",
+      "total_additions": 3963,
+      "total_deletions": 157,
+      "accepted_lines": 3793,
+      "overriden_lines": 4
+    }
+  },
+  "sessions": {
+    "s_715900a013b326": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6429d81f-85ac-40ef-a49a-12d9a679d95f",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Nikolay Pisarev <npisarev@qase.io>"
+    }
+  }
+}

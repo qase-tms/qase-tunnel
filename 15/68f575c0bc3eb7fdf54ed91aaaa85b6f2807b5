@@ -1,0 +1,23 @@
+README.md
+  s_715900a013b326::t_4dd64489b7e96b 119,121,125,127,129
+  s_715900a013b326::t_e0fbc0595ad85a 4
+  s_715900a013b326::t_114c5ac3569fd2 18,20-22
+  s_715900a013b326::t_d2282b33193ef6 156
+  s_715900a013b326::t_b7fd81a70b8a00 80-92,95-99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "1568f575c0bc3eb7fdf54ed91aaaa85b6f2807b5",
+  "prompts": {},
+  "sessions": {
+    "s_715900a013b326": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6429d81f-85ac-40ef-a49a-12d9a679d95f",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Nikolay Pisarev <npisarev@qase.io>"
+    }
+  }
+}

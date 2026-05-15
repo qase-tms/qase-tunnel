@@ -1,0 +1,19 @@
+README.md
+  s_715900a013b326::t_1092f08d3b508d 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "bd16ff2991ceae0160b699bc1c9bcc0d13507906",
+  "prompts": {},
+  "sessions": {
+    "s_715900a013b326": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6429d81f-85ac-40ef-a49a-12d9a679d95f",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Nikolay Pisarev <npisarev@qase.io>"
+    }
+  }
+}

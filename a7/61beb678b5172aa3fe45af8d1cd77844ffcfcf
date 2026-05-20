@@ -1,0 +1,21 @@
+internal/api/client.go
+  s_715900a013b326::t_15083f76a61c29 25
+  s_715900a013b326::t_26e76e50167292 68
+  s_715900a013b326::t_402f89b7d1d7a4 2,4-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.9",
+  "base_commit_sha": "a761beb678b5172aa3fe45af8d1cd77844ffcfcf",
+  "prompts": {},
+  "sessions": {
+    "s_715900a013b326": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6429d81f-85ac-40ef-a49a-12d9a679d95f",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Nikolay Pisarev <npisarev@qase.io>"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+internal/keystore/keystore.go
+  s_715900a013b326::t_28e63693d6a482 59-60,63,67
+internal/buildinfo/buildinfo.go
+  s_715900a013b326::t_19171231072f57 3-9
+internal/api/client.go
+  s_715900a013b326::t_c52bd1f9f2b2f1 19,21-22
+internal/update/update.go
+  s_715900a013b326::t_b1b091480f8cc1 18,20-25
+internal/transport/frpc/config.go
+  s_715900a013b326::t_02b4b0c593eef6 114-115,151
+internal/translate/patterns.go
+  s_715900a013b326::t_45917ae4113461 24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "35052b92722b8364253b577a5d6a19d91fca36a3",
+  "prompts": {},
+  "sessions": {
+    "s_715900a013b326": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6429d81f-85ac-40ef-a49a-12d9a679d95f",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Nikolay Pisarev <npisarev@qase.io>"
+    }
+  }
+}

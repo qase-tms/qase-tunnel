@@ -1,0 +1,39 @@
+internal/cli/runner.go
+  s_715900a013b326::t_e5163a6e03e874 11-12
+internal/buildinfo/buildinfo.go
+  s_715900a013b326::t_436ed2e07af07d 2,8,11,14-15,19
+internal/keystore/keystore.go
+  s_715900a013b326::t_738b05891ba3ff 1,20,26,33,66,73-74
+internal/translate/patterns.go
+  s_715900a013b326::t_3d5ef931d433d8 2,10,28-29,92,112
+internal/wizard/wizard.go
+  s_715900a013b326::t_601e47f243689a 1-2,15,18,24,31,77
+internal/update/update.go
+  s_715900a013b326::t_bb19b0a007fe73 53,58,63,77-78,81,96,190,208
+internal/transport/frpc/lifecycle.go
+  s_715900a013b326::t_668584a1664265 16,21,26,36-42,45,70-71,81,155-156,175
+cmd/qase-tunnel/main.go
+  s_715900a013b326::t_84141c59e53b4e 1-2,75
+internal/cli/cli.go
+  s_715900a013b326::t_143c6cf08ad3c0 1,36,40-45,48,53,65,194,221-224,244-245,297-298,334,382
+internal/api/client.go
+  s_715900a013b326::t_d6db8fd97bf88c 1,19-28,30-31,38,51,78-80
+internal/transport/frpc/config.go
+  s_715900a013b326::t_439903901e5e0a 1,15-16,57,61-62,68,91,160
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "86edf2eb6e6403da604037214a14b1f5d9e15d10",
+  "prompts": {},
+  "sessions": {
+    "s_715900a013b326": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6429d81f-85ac-40ef-a49a-12d9a679d95f",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Nikolay Pisarev <npisarev@qase.io>"
+    }
+  }
+}

@@ -1,0 +1,41 @@
+internal/wizard/wizard_test.go
+  s_715900a013b326::t_daf8f812cddd91 85-103
+internal/buildinfo/buildinfo.go
+  s_715900a013b326::t_1802d9ff8556dd 41-55
+internal/cli/cli_test.go
+  s_715900a013b326::t_54fb9973bc6ff2 70-90
+internal/api/client.go
+  s_715900a013b326::t_402f89b7d1d7a4 2,5-9
+  s_715900a013b326::t_67f13e9c6842da 3-4,10-11,24,27-28,38-47,49-50,57-71,76-78,113-154,159-206,219,224,231-234,240
+  s_715900a013b326::t_26e76e50167292 98
+  s_715900a013b326::t_c006e257a4bc3a 101-105,107-112
+  s_715900a013b326::t_9f9c0f3d519b5a 155-158
+Makefile
+  s_715900a013b326::t_29375f5e5ddb8d 38-42,49
+internal/api/client_test.go
+  s_715900a013b326::t_f4e98aad3a97d6 11-12
+  s_715900a013b326::t_f490a8cebb6927 18
+internal/cli/cli.go
+  s_715900a013b326::t_f31c00f93d024d 11,15,27-30
+  s_715900a013b326::t_0b7374f5a12b60 175
+  s_715900a013b326::t_af37b96ddfa090 237
+  s_715900a013b326::t_50439dc74b2dd0 240-253,260-292
+  s_715900a013b326::t_220bce65b523bb 321,324,329,341-344,346-348,360-382
+  s_715900a013b326::t_77194e70ba5239 330-340,345,349,356-359
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "743df19a85792c670590224b3e9301241b6b6ad4",
+  "prompts": {},
+  "sessions": {
+    "s_715900a013b326": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6429d81f-85ac-40ef-a49a-12d9a679d95f",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Nikolay Pisarev <npisarev@qase.io>"
+    }
+  }
+}

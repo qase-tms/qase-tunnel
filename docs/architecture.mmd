@@ -1,0 +1,20 @@
+flowchart TD
+    subgraph qase["☁️ Qase Cloud"]
+        workspace["🧪 <b>Your Workspace</b><br/><sub>tests · environment checks · AI generation</sub>"]
+    end
+
+    workspace -. "🔐 <b>Encrypted per-tenant channel</b><br/><sub>opened outbound by the agent</sub>" .-> agent
+
+    subgraph yours["🏢 Your Network"]
+        agent["🔒 <b>qase-tunnel</b><br/><sub>customer-side agent</sub>"]
+        target["🖥️ <b>Your private host</b><br/><sub>e.g. internal.your-company.test</sub>"]
+        agent -- "<b>HTTP / HTTPS</b>" --> target
+    end
+
+    classDef qaseZone fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e
+    classDef yoursZone fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f
+    classDef nodeBox fill:#ffffff,stroke:#374151,stroke-width:1.5px,color:#111827
+
+    class qase qaseZone
+    class yours yoursZone
+    class workspace,agent,target nodeBox

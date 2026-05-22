@@ -1,0 +1,135 @@
+# GoReleaser config — replaces the hand-rolled matrix workflow.
+# Run `goreleaser release --clean` from CI on tag push; for a dry run locally:
+# `goreleaser release --snapshot --clean --skip=publish,sign`.
+version: 2
+
+project_name: qase-tunnel
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: qase-tunnel
+    main: ./cmd/qase-tunnel
+    binary: qase-tunnel
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    # Link-time inject the release channel's API + FRPS endpoints. Defaults
+    # target production; staging builds override via env vars in CI.
+    ldflags:
+      - -s -w
+      - -X github.com/qase-tms/qase-tunnel/internal/buildinfo.Version={{.Version}}
+      - -X github.com/qase-tms/qase-tunnel/internal/buildinfo.APIBaseURL={{ if index .Env "QASE_API_BASE" }}{{ .Env.QASE_API_BASE }}{{ else }}https://api.qase.io{{ end }}
+      - -X github.com/qase-tms/qase-tunnel/internal/buildinfo.FrpsServer={{ if index .Env "QASE_FRPS_SERVER" }}{{ .Env.QASE_FRPS_SERVER }}{{ else }}frps.qase.io{{ end }}
+      - -X github.com/qase-tms/qase-tunnel/internal/buildinfo.FrpsTCPPort={{ if index .Env "QASE_FRPS_TCP_PORT" }}{{ .Env.QASE_FRPS_TCP_PORT }}{{ else }}0{{ end }}
+      - -X github.com/qase-tms/qase-tunnel/internal/buildinfo.FrpsQUICPort={{ if index .Env "QASE_FRPS_QUIC_PORT" }}{{ .Env.QASE_FRPS_QUIC_PORT }}{{ else }}0{{ end }}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - id: qase-tunnel
+    # Stable archive names: qase-tunnel_<version>_<os>_<arch>.<ext>
+    # Homebrew + Scoop + install scripts depend on this format.
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE*
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+# Cosign keyless signature for every artifact. Verifies provenance via OIDC —
+# the resulting .pem cert proves the build happened on this repo's CI.
+signs:
+  - id: cosign
+    cmd: cosign
+    env:
+      - COSIGN_EXPERIMENTAL=1
+    signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - --yes
+      - --output-signature=${signature}
+      - --output-certificate=${certificate}
+      - ${artifact}
+    artifacts: all
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  github:
+    owner: qase-tms
+    name: qase-tunnel
+  draft: false
+  prerelease: auto
+  name_template: "v{{.Version}}"
+  header: |
+    ## qase-tunnel `v{{.Version}}`
+
+    Customer-side CLI for Qase private-host tunnels.
+  footer: |
+    ## Install
+
+    **macOS / Linux (Homebrew):**
+    ```
+    brew install qase-tms/tap/qase-tunnel
+    ```
+
+    **Windows (PowerShell one-liner):**
+    ```
+    iwr https://raw.githubusercontent.com/qase-tms/qase-tunnel/main/script/install.ps1 -OutFile install.ps1
+    .\install.ps1
+    ```
+
+    **Manual:** download the archive matching your OS + arch from the assets
+    below and extract `qase-tunnel` into a directory on `PATH`. Verify with
+    `checksums.txt` and the matching `.sig`/`.pem` cosign artifacts.
+
+homebrew_casks:
+  - name: qase-tunnel
+    homepage: "https://github.com/qase-tms/qase-tunnel"
+    description: "Customer-side CLI for Qase private-host tunnels"
+    binary: qase-tunnel
+    repository:
+      owner: qase-tms
+      name: homebrew-tap
+      # Existing qase-tms/homebrew-tap still uses `master` as its default
+      # branch (created 2021, predates GitHub's main-default flip).
+      branch: master
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: qase-tunnel-bot
+      email: noreply@qase.io
+    commit_msg_template: "qase-tunnel: bump to {{ .Tag }}"
+    directory: Casks
+    # Always publish the cask, including from pre-release tags — betas
+    # are part of the supported install path (`brew install qase-tms/tap/qase-tunnel`).
+    skip_upload: false
+    # Macs ship qase-tunnel unsigned today, so warn the user about the
+    # quarantine flag instead of silently failing on first launch.
+    # When the MAC_CERT_* signing secrets land, remove this hook.
+    hooks:
+      post:
+        install: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/qase-tunnel"]
+          end

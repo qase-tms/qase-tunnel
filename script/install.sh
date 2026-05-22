@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+#
+# qase-tunnel installer for macOS / Linux.
+#
+# Detects the host OS + architecture, downloads the matching binary from the
+# latest qase-tunnel GitHub release, verifies the SHA256, installs it to
+# /usr/local/bin (or ~/.local/bin if we lack root).
+#
+# Usage:
+#   curl -fsSL https://raw.githubusercontent.com/qase-tms/qase-tunnel/main/script/install.sh | bash
+#
+# Optional environment variables:
+#   QASE_TUNNEL_VERSION   release tag to install (default: latest)
+#   QASE_TUNNEL_PREFIX    install prefix override (default: /usr/local/bin or ~/.local/bin)
+
+set -euo pipefail
+
+REPO="qase-tms/qase-tunnel"
+VERSION="${QASE_TUNNEL_VERSION:-latest}"
+
+# --- detect OS -------------------------------------------------------------
+uname_s="$(uname -s)"
+case "$uname_s" in
+    Linux)  os="linux"  ;;
+    Darwin) os="darwin" ;;
+    *)
+        echo "qase-tunnel: unsupported OS '$uname_s'. Use the Windows installer for Windows." >&2
+        exit 1
+        ;;
+esac
+
+# --- detect arch -----------------------------------------------------------
+uname_m="$(uname -m)"
+case "$uname_m" in
+    x86_64|amd64) arch="amd64" ;;
+    arm64|aarch64) arch="arm64" ;;
+    *)
+        echo "qase-tunnel: unsupported architecture '$uname_m'." >&2
+        exit 1
+        ;;
+esac
+
+# --- resolve tag -----------------------------------------------------------
+if [ "$VERSION" = "latest" ]; then
+    tag="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+        | sed -nE 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/p' | head -n1)"
+    if [ -z "$tag" ]; then
+        echo "qase-tunnel: could not resolve latest release tag from GitHub API" >&2
+        exit 1
+    fi
+else
+    tag="$VERSION"
+fi
+
+asset="qase-tunnel-${os}-${arch}"
+asset_url="https://github.com/${REPO}/releases/download/${tag}/${asset}"
+sha_url="${asset_url}.sha256"
+
+# --- pick install prefix ---------------------------------------------------
+if [ -n "${QASE_TUNNEL_PREFIX:-}" ]; then
+    install_dir="$QASE_TUNNEL_PREFIX"
+elif [ -w /usr/local/bin ] || ([ ! -e /usr/local/bin ] && [ -w /usr/local ]); then
+    install_dir="/usr/local/bin"
+else
+    install_dir="$HOME/.local/bin"
+    mkdir -p "$install_dir"
+fi
+
+cat <<EOF
+
+qase-tunnel installer
+  repo      : ${REPO}
+  tag       : ${tag}
+  arch      : ${os}/${arch}
+  asset     : ${asset}
+  installDir: ${install_dir}
+
+EOF
+
+# --- download --------------------------------------------------------------
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "$tmpdir"' EXIT
+
+echo "Downloading ${asset} ..."
+curl -fsSL --proto '=https' --tlsv1.2 -o "${tmpdir}/${asset}" "${asset_url}"
+
+# --- verify checksum -------------------------------------------------------
+expected="$(curl -fsSL "${sha_url}" 2>/dev/null | awk '{print $1}' || true)"
+if [ -n "$expected" ]; then
+    if command -v shasum >/dev/null 2>&1; then
+        actual="$(shasum -a 256 "${tmpdir}/${asset}" | awk '{print $1}')"
+    else
+        actual="$(sha256sum "${tmpdir}/${asset}" | awk '{print $1}')"
+    fi
+    if [ "$expected" != "$actual" ]; then
+        echo "qase-tunnel: SHA256 mismatch for ${asset}" >&2
+        echo "  expected: $expected" >&2
+        echo "  actual:   $actual" >&2
+        exit 1
+    fi
+    echo "SHA256 verified: $actual"
+else
+    echo "qase-tunnel: could not fetch ${sha_url}; skipping verification" >&2
+fi
+
+# --- install ---------------------------------------------------------------
+dest="${install_dir}/qase-tunnel"
+chmod +x "${tmpdir}/${asset}"
+if [ -w "$install_dir" ]; then
+    mv "${tmpdir}/${asset}" "$dest"
+else
+    echo "qase-tunnel: ${install_dir} is not writable; using sudo to install"
+    sudo mv "${tmpdir}/${asset}" "$dest"
+fi
+echo "Installed: $dest"
+
+cat <<EOF
+
+Next:
+  qase-tunnel start -a <YOUR_QASE_API_TOKEN>
+
+EOF

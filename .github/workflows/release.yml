@@ -1,0 +1,63 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (must already exist)"
+        required: true
+
+permissions:
+  contents: write   # required for softprops/action-gh-release
+  id-token: write   # required for cosign keyless signing via OIDC
+
+env:
+  GO_VERSION: "1.25"
+
+jobs:
+  release:
+    name: goreleaser
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # GoReleaser needs the full history for changelogs
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: v2.4.0
+
+      - name: Install osslsigncode (for Windows Authenticode signing, when cert present)
+        if: ${{ env.WIN_CERT_PFX_BASE64 != '' }}
+        env:
+          WIN_CERT_PFX_BASE64: ${{ secrets.WIN_CERT_PFX_BASE64 }}
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq osslsigncode
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          # GITHUB_TOKEN is scoped to qase-tunnel — used for the Release publish.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # HOMEBREW_TAP_GITHUB_TOKEN must have contents:write on qase-tms/homebrew-tap.
+          # Without it the homebrew_casks publisher fails the run on stable tags
+          # (skip_upload: auto means pre-release tags don't try to publish).
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          # Release channel — defaults baked into .goreleaser.yaml hit production
+          # endpoints; staging / dev builds override these in their own runs.
+          QASE_API_BASE: ${{ secrets.QASE_API_BASE }}
+          QASE_FRPS_SERVER: ${{ secrets.QASE_FRPS_SERVER }}
+          QASE_FRPS_TCP_PORT: ${{ secrets.QASE_FRPS_TCP_PORT }}
+          QASE_FRPS_QUIC_PORT: ${{ secrets.QASE_FRPS_QUIC_PORT }}

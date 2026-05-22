@@ -1,0 +1,16 @@
+serverAddr = "frps.qase.io"
+serverPort = 7002
+metadatas.token = "test-token-1234567890"
+log.level = "info"
+transport.protocol = "quic"
+transport.tls.enable = false
+transport.poolCount = 50
+
+[[proxies]]
+name = "tunnel-abcdef12"
+type = "stcp"
+secretKey = "test-secret-base64-32-bytes"
+transport.useEncryption = true
+transport.useCompression = true
+[proxies.plugin]
+type = "http_proxy"

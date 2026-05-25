@@ -51,7 +51,7 @@ archives:
       # Per-platform `frpc` (or `frpc.exe`) + FRP's LICENSE, prepared by
       # `script/fetch-frpc.sh`. Living alongside qase-tunnel in the archive
       # means the install scripts get both with a single extract.
-      - src: dist/frpc/{{ .Os }}_{{ .Arch }}/*
+      - src: .build/frpc/{{ .Os }}_{{ .Arch }}/*
         strip_parent: true
 
 checksum:

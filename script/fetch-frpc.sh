@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Downloads `frpc` for every (os, arch) qase-tunnel ships, verifies SHA256
 # against frp's official checksums file, and places each binary in
-# `dist/frpc/<os>_<arch>/` so GoReleaser's `archives.files` can embed it.
+# `.build/frpc/<os>_<arch>/` so GoReleaser's `archives.files` can embed it.
+# (Not under `dist/` — that's GoReleaser's own output dir and it refuses to
+# run when its contents are pre-populated, even with --clean.)
 #
 # Run from the repo root before `goreleaser release` (wired in via the
 # `before.hooks` block in .goreleaser.yaml).
@@ -13,7 +15,7 @@ set -euo pipefail
 
 FRP_VERSION="${FRP_VERSION:-0.69.0}"
 BASE="https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}"
-DEST="dist/frpc"
+DEST=".build/frpc"
 
 CHECKSUMS="$(mktemp)"
 trap 'rm -f "$CHECKSUMS"' EXIT

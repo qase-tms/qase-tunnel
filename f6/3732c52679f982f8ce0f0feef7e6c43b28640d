@@ -1,0 +1,24 @@
+.goreleaser.yaml
+  s_715900a013b326::t_e125ec25b92b52 54
+.gitignore
+  s_715900a013b326::t_41450b71943403 3
+script/fetch-frpc.sh
+  s_715900a013b326::t_70a24b3578d22d 4-6
+  s_715900a013b326::t_f000b4f89fd1de 18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "f63732c52679f982f8ce0f0feef7e6c43b28640d",
+  "prompts": {},
+  "sessions": {
+    "s_715900a013b326": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6429d81f-85ac-40ef-a49a-12d9a679d95f",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Nikolay Pisarev <npisarev@qase.io>"
+    }
+  }
+}

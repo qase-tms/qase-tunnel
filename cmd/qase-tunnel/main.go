@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"runtime"
 
 	"github.com/qase-tms/qase-tunnel/internal/api"
 	"github.com/qase-tms/qase-tunnel/internal/buildinfo"
@@ -70,15 +71,19 @@ func (surveyPrompt) AskRetry(_ context.Context, _ string) (bool, error) {
 }
 
 func defaultFrpcBinary() string {
+	name := "frpc"
+	if runtime.GOOS == "windows" {
+		name = "frpc.exe"
+	}
 	exe, err := os.Executable()
 	if err != nil {
-		return "frpc"
+		return name
 	}
-	bundled := filepathJoin(filepathDir(exe), "frpc")
+	bundled := filepathJoin(filepathDir(exe), name)
 	if _, err := os.Stat(bundled); err == nil {
 		return bundled
 	}
-	return "frpc"
+	return name
 }
 
 func filepathDir(p string) string {

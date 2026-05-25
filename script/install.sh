@@ -114,17 +114,27 @@ if [ ! -f "${tmpdir}/qase-tunnel" ]; then
     echo "qase-tunnel: binary 'qase-tunnel' not found inside ${asset}" >&2
     exit 1
 fi
-chmod +x "${tmpdir}/qase-tunnel"
+# frpc is bundled in the archive (see script/fetch-frpc.sh in the release
+# pipeline). Installing it next to qase-tunnel keeps both on the same PATH.
+if [ ! -f "${tmpdir}/frpc" ]; then
+    echo "qase-tunnel: bundled 'frpc' not found inside ${asset}" >&2
+    exit 1
+fi
+chmod +x "${tmpdir}/qase-tunnel" "${tmpdir}/frpc"
 
 # --- install ---------------------------------------------------------------
 dest="${install_dir}/qase-tunnel"
+dest_frpc="${install_dir}/frpc"
 if [ -w "$install_dir" ]; then
     mv "${tmpdir}/qase-tunnel" "$dest"
+    mv "${tmpdir}/frpc"        "$dest_frpc"
 else
     echo "qase-tunnel: ${install_dir} is not writable; using sudo to install"
     sudo mv "${tmpdir}/qase-tunnel" "$dest"
+    sudo mv "${tmpdir}/frpc"        "$dest_frpc"
 fi
 echo "Installed: $dest"
+echo "Installed: $dest_frpc"
 
 cat <<EOF
 

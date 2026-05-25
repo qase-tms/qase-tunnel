@@ -8,6 +8,10 @@ project_name: qase-tunnel
 before:
   hooks:
     - go mod tidy
+    # Bundles `frpc` (FRP client) for every platform we ship. The binary is
+    # required by qase-tunnel at runtime; downloading it once here lets
+    # customers install qase-tunnel without a second manual step.
+    - bash script/fetch-frpc.sh
 
 builds:
   - id: qase-tunnel
@@ -44,6 +48,11 @@ archives:
     files:
       - LICENSE*
       - README.md
+      # Per-platform `frpc` (or `frpc.exe`) + FRP's LICENSE, prepared by
+      # `script/fetch-frpc.sh`. Living alongside qase-tunnel in the archive
+      # means the install scripts get both with a single extract.
+      - src: dist/frpc/{{ .Os }}_{{ .Arch }}/*
+        strip_parent: true
 
 checksum:
   name_template: "checksums.txt"

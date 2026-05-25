@@ -129,11 +129,22 @@ if (-not (Test-Path $extractedExe)) {
     Remove-Item -Path $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
     throw "qase-tunnel.exe not found inside $asset"
 }
+# frpc.exe is bundled in the archive (see scripts/fetch-frpc.sh on the
+# release pipeline). Installing it next to qase-tunnel.exe puts it on the
+# same PATH the script just configured.
+$extractedFrpc = Join-Path $tmpDir "frpc.exe"
+if (-not (Test-Path $extractedFrpc)) {
+    Remove-Item -Path $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
+    throw "frpc.exe not found inside $asset"
+}
 
 $dest = Join-Path $InstallDir "qase-tunnel.exe"
+$destFrpc = Join-Path $InstallDir "frpc.exe"
 Move-Item -Path $extractedExe -Destination $dest -Force
+Move-Item -Path $extractedFrpc -Destination $destFrpc -Force
 Remove-Item -Path $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host "Installed: $dest"
+Write-Host "Installed: $destFrpc"
 
 if (-not $SkipPath) {
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")

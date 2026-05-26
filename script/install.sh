@@ -42,7 +42,11 @@ esac
 
 # --- resolve tag -----------------------------------------------------------
 if [ "$VERSION" = "latest" ]; then
-    tag="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+    # /releases/latest excludes prereleases by design, so it 404s while we
+    # only ship beta tags. Fall back to the full list (newest-first) and
+    # take the first entry — works for both prerelease-only and post-stable
+    # repos.
+    tag="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases?per_page=1" \
         | sed -nE 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/p' | head -n1)"
     if [ -z "$tag" ]; then
         echo "qase-tunnel: could not resolve latest release tag from GitHub API" >&2

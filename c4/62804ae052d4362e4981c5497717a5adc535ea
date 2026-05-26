@@ -1,0 +1,21 @@
+script/install.ps1
+  s_715900a013b326::t_b10a48c73974a1 58-62,64-67
+script/install.sh
+  s_715900a013b326::t_914ec409c2f80e 45-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "c462804ae052d4362e4981c5497717a5adc535ea",
+  "prompts": {},
+  "sessions": {
+    "s_715900a013b326": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6429d81f-85ac-40ef-a49a-12d9a679d95f",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Nikolay Pisarev <npisarev@qase.io>"
+    }
+  }
+}

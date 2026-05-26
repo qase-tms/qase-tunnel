@@ -55,9 +55,16 @@ function Resolve-ReleaseTag {
     if ($RequestedVersion -and $RequestedVersion -ne "latest") {
         return $RequestedVersion
     }
-    $api = "https://api.github.com/repos/$Repo/releases/latest"
+    # /releases/latest excludes prereleases by design, so it 404s while we
+    # only ship beta tags. Fall back to the full list (newest-first) and
+    # take the first entry — works for both prerelease-only and post-stable
+    # repos.
+    $api = "https://api.github.com/repos/$Repo/releases?per_page=1"
     $resp = Invoke-RestMethod -Uri $api -Headers @{ "User-Agent" = "qase-tunnel-installer" }
-    return $resp.tag_name
+    if (-not $resp -or @($resp).Count -eq 0) {
+        throw "No releases found at https://github.com/$Repo/releases"
+    }
+    return @($resp)[0].tag_name
 }
 
 function Get-ExpectedSha256 {

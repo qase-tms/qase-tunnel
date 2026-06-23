@@ -1,0 +1,32 @@
+internal/cli/cli.go
+  s_480f3042120d1b::t_96b43c16271f87 60-64
+  s_480f3042120d1b::t_0ce8aa30675189 74-76
+  s_480f3042120d1b::t_91f9a582d2d594 101-103,111-113
+  s_480f3042120d1b::t_50513092a2d794 9-10
+  s_480f3042120d1b::t_268c1e77683d48 198-202,204-208,210,213-215
+  s_480f3042120d1b::t_689843f06ef4d5 563
+  s_480f3042120d1b::t_5ed8266063d3a2 365-540
+internal/transport/frpc/config.go
+  s_480f3042120d1b::t_9ca4a7bffd5f89 28-34
+internal/cli/cli_test.go
+  s_480f3042120d1b::t_317a077ba2cc50 75,77
+  s_480f3042120d1b::t_19b020426e8b48 8
+  s_480f3042120d1b::t_472d69edf2fb69 362-476
+  s_480f3042120d1b::t_27490e13d685dc 52-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.10",
+  "base_commit_sha": "b900124d3c9e898991c64d70c036e5944a79df1e",
+  "prompts": {},
+  "sessions": {
+    "s_480f3042120d1b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8828570e-31bd-4b77-b48c-692832961c46",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Nikolay Pisarev <npisarev@qase.io>"
+    }
+  }
+}

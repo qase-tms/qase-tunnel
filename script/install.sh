@@ -42,14 +42,16 @@ esac
 
 # --- resolve tag -----------------------------------------------------------
 if [ "$VERSION" = "latest" ]; then
-    # /releases/latest excludes prereleases by design, so it 404s while we
-    # only ship beta tags. Fall back to the full list (newest-first) and
-    # take the first entry — works for both prerelease-only and post-stable
-    # repos.
-    tag="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases?per_page=1" \
-        | sed -nE 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/p' | head -n1)"
+    # Resolve the latest release WITHOUT the GitHub REST API: api.github.com is
+    # rate-limited to 60 req/hour per IP for unauthenticated callers, which
+    # broke `latest` installs once an IP ran out of budget. The releases Atom
+    # feed is served from github.com (not REST-rate-limited) AND includes
+    # prereleases, so /releases/latest's prerelease exclusion isn't a problem.
+    # Entries are newest-first; the first /releases/tag/<tag> link is latest.
+    tag="$(curl -fsSL -A "qase-tunnel-installer" "https://github.com/${REPO}/releases.atom" \
+        | grep -oE '/releases/tag/[^"<]+' | head -n1 | sed -E 's#.*/releases/tag/##')"
     if [ -z "$tag" ]; then
-        echo "qase-tunnel: could not resolve latest release tag from GitHub API" >&2
+        echo "qase-tunnel: could not resolve latest release tag from https://github.com/${REPO}/releases" >&2
         exit 1
     fi
 else

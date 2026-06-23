@@ -55,16 +55,23 @@ function Resolve-ReleaseTag {
     if ($RequestedVersion -and $RequestedVersion -ne "latest") {
         return $RequestedVersion
     }
-    # /releases/latest excludes prereleases by design, so it 404s while we
-    # only ship beta tags. Fall back to the full list (newest-first) and
-    # take the first entry — works for both prerelease-only and post-stable
-    # repos.
-    $api = "https://api.github.com/repos/$Repo/releases?per_page=1"
-    $resp = Invoke-RestMethod -Uri $api -Headers @{ "User-Agent" = "qase-tunnel-installer" }
-    if (-not $resp -or @($resp).Count -eq 0) {
+    # Resolve the latest release WITHOUT the GitHub REST API: api.github.com is
+    # rate-limited to 60 req/hour per IP for unauthenticated callers, which
+    # broke `latest` installs once an IP ran out of budget. The releases Atom
+    # feed is served from github.com (not REST-rate-limited) AND includes
+    # prereleases, so /releases/latest's prerelease exclusion isn't a problem.
+    # Entries are newest-first; the first /releases/tag/<tag> link is latest.
+    $feed = "https://github.com/$Repo/releases.atom"
+    try {
+        $content = (Invoke-WebRequest -Uri $feed -UseBasicParsing -Headers @{ "User-Agent" = "qase-tunnel-installer" }).Content
+    } catch {
+        throw "Could not fetch release feed $feed ($($_.Exception.Message))"
+    }
+    $m = [regex]::Match($content, '/releases/tag/([^"<]+)')
+    if (-not $m.Success) {
         throw "No releases found at https://github.com/$Repo/releases"
     }
-    return @($resp)[0].tag_name
+    return $m.Groups[1].Value
 }
 
 function Get-ExpectedSha256 {

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -55,6 +57,11 @@ type Deps struct {
 	Stdout       io.Writer
 	Stderr       io.Writer
 	Now          func() time.Time
+
+	// DialContext performs the raw TCP reachability checks used by `diagnose`
+	// (frps server + optional --target). Injected so diagnostics are testable;
+	// defaulted to a real net.Dialer in Run.
+	DialContext func(ctx context.Context, network, address string) (net.Conn, error)
 }
 
 func Run(ctx context.Context, args []string, deps Deps) ExitCode {
@@ -63,6 +70,9 @@ func Run(ctx context.Context, args []string, deps Deps) ExitCode {
 	}
 	if deps.Stderr == nil {
 		deps.Stderr = os.Stderr
+	}
+	if deps.DialContext == nil {
+		deps.DialContext = (&net.Dialer{Timeout: 5 * time.Second}).DialContext
 	}
 
 	root := buildRoot(ctx, &deps)
@@ -88,6 +98,9 @@ func classifyError(err error, w io.Writer) ExitCode {
 	case errors.Is(err, errNotConfigured):
 		fmt.Fprintln(w, err.Error())
 		return ExitNotConfigured
+	case errors.Is(err, errDiagnoseFailed):
+		// diagnose already printed per-check results + hints; just set the code.
+		return ExitGeneric
 	default:
 		fmt.Fprintln(w, "error:", err.Error())
 		return ExitGeneric
@@ -95,8 +108,9 @@ func classifyError(err error, w io.Writer) ExitCode {
 }
 
 var (
-	errFlagUsage     = errors.New("flag usage error")
-	errNotConfigured = errors.New("no saved tunnel configuration; run `qase-tunnel start -a <token>` or `qase-tunnel` to set one up")
+	errFlagUsage      = errors.New("flag usage error")
+	errNotConfigured  = errors.New("no saved tunnel configuration; run `qase-tunnel start -a <token>` or `qase-tunnel` to set one up")
+	errDiagnoseFailed = errors.New("diagnose: one or more checks failed")
 )
 
 func buildRoot(ctx context.Context, d *Deps) *cobra.Command {
@@ -181,14 +195,24 @@ func newResetCmd(d *Deps) *cobra.Command {
 }
 
 func newDiagnoseCmd(d *Deps) *cobra.Command {
-	return &cobra.Command{
+	var (
+		token  string
+		target string
+	)
+	cmd := &cobra.Command{
 		Use:   "diagnose",
-		Short: "Run the embedded diagnostic suite.",
+		Short: "Check why cloud runs through this tunnel might be failing.",
+		Long: "Run a sequence of checks (saved config, Qase API + token, tunnel " +
+			"status, tunnel-server reachability, config validity) and print an " +
+			"actionable result for each. Pass --target <url> to also probe whether " +
+			"this machine can reach the site the cloud browser will open through the tunnel.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			fmt.Fprintln(d.Stdout, "diagnose: not yet implemented")
-			return nil
+			return runDiagnose(cmd.Context(), d, token, target)
 		},
 	}
+	cmd.Flags().StringVarP(&token, "api-token", "a", "", "Qase API token (defaults to the saved one)")
+	cmd.Flags().StringVar(&target, "target", "", "optional URL/host to probe for reachability from this machine")
+	return cmd
 }
 
 func runDefault(ctx context.Context, d *Deps, debug bool) error {
@@ -338,6 +362,182 @@ func runStatus(d *Deps) error {
 	return nil
 }
 
+// runDiagnose runs the client-side diagnostic suite. Each check prints a ✓/✗
+// line; a ✗ carries an actionable hint. It never aborts on the first failure —
+// later checks (e.g. tunnel-server reachability) are still useful — and returns
+// errDiagnoseFailed if any check failed so the process exits non-zero.
+func runDiagnose(ctx context.Context, d *Deps, tokenFlag, target string) error {
+	w := d.Stdout
+	failed := false
+	pass := func(name, detail string) {
+		if detail != "" {
+			fmt.Fprintf(w, "%s %s — %s\n", mark(w, true), name, detail)
+		} else {
+			fmt.Fprintf(w, "%s %s\n", mark(w, true), name)
+		}
+	}
+	fail := func(name, hint string) {
+		failed = true
+		fmt.Fprintf(w, "%s %s\n    %s\n", mark(w, false), name, hint)
+	}
+
+	fmt.Fprintf(w, "Running qase-tunnel diagnostics...\n\n")
+
+	// 1. API token — flag wins, else the saved one.
+	token := tokenFlag
+	tokenSrc := "from -a flag"
+	if token == "" {
+		if saved, err := d.Keystore.Get(KeyAPIToken); err == nil && saved != "" {
+			token, tokenSrc = saved, "from saved config"
+		}
+	}
+	if token == "" {
+		fail("API token", "no token available — pass `-a <token>` or run `qase-tunnel start -a <token>` first")
+	} else {
+		pass("API token", tokenSrc)
+	}
+
+	// 2. Saved tunnel on this machine.
+	savedUUID, _ := d.Keystore.Get(KeyTunnelUUID)
+	transportRaw, _ := d.Keystore.Get(KeyTransport)
+	tr, err := parseTransport(transportRaw)
+	if err != nil {
+		tr = frpc.TransportTCP
+	}
+	if savedUUID == "" {
+		fail("Saved tunnel", "no tunnel saved on this machine — run `qase-tunnel start -a <token>` (then select it in your Environment)")
+	} else {
+		pass("Saved tunnel", savedUUID)
+	}
+
+	// 3 + 4. Qase API reachable + token valid, and this tunnel's status.
+	if token != "" && d.APIClient != nil {
+		tunnels, err := d.APIClient.ListTunnels(ctx, token)
+		switch {
+		case errors.Is(err, api.ErrUnauthorized):
+			fail("Qase API auth", "token rejected — generate a fresh API token and run `qase-tunnel start -a <token>`")
+		case errors.Is(err, api.ErrServerUnavailable):
+			fail("Qase API reachable", "Qase API unavailable — check your network/firewall, or retry later")
+		case err != nil:
+			fail("Qase API reachable", err.Error())
+		default:
+			pass("Qase API reachable + token valid", fmt.Sprintf("%d tunnel(s) on this account", len(tunnels)))
+			if savedUUID != "" {
+				diagnoseTunnelStatus(tunnels, savedUUID, pass, fail)
+			}
+		}
+	}
+
+	// 5. Tunnel server (frps) reachable over the saved transport.
+	host, port := frpc.FrpsAddr(tr)
+	frpsAddr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
+	if err := dialReachable(ctx, d, frpsAddr); err != nil {
+		fail("Tunnel server reachable", fmt.Sprintf("cannot reach %s (%v) — an egress firewall/proxy is likely blocking it", frpsAddr, err))
+	} else {
+		pass("Tunnel server reachable", frpsAddr)
+	}
+
+	// 6. frpc config renders from the saved credentials.
+	if savedUUID != "" {
+		agent, _ := d.Keystore.Get(KeyAgentName)
+		secret, _ := d.Keystore.Get(KeyStcpSecret)
+		if _, err := frpc.Render(frpc.Inputs{Token: token, AgentName: agent, Secret: secret, Transport: tr}); err != nil {
+			fail("Tunnel config valid", fmt.Sprintf("saved config is incomplete (%v) — run `qase-tunnel reset` then `start`", err))
+		} else {
+			pass("Tunnel config valid", string(tr))
+		}
+	}
+
+	// 7. Optional: can THIS machine reach the target the cloud browser will open?
+	if target != "" {
+		addr, err := targetHostPort(target)
+		if err != nil {
+			fail("Target reachable", fmt.Sprintf("invalid --target %q: %v", target, err))
+		} else if err := dialReachable(ctx, d, addr); err != nil {
+			fail("Target reachable from this machine",
+				fmt.Sprintf("cannot reach %s (%v) — the cloud browser reaches your site THROUGH this machine, so it can't either. Check VPN/DNS/firewall.", addr, err))
+		} else {
+			pass("Target reachable from this machine", addr)
+		}
+	}
+
+	fmt.Fprintln(w)
+	if failed {
+		fmt.Fprintf(w, "%s Some checks failed — fix the items above and re-run.\n", mark(w, false))
+		return errDiagnoseFailed
+	}
+	fmt.Fprintf(w, "%s All checks passed.\n", mark(w, true))
+	return nil
+}
+
+func diagnoseTunnelStatus(tunnels []api.TunnelListItem, savedUUID string, pass, fail func(name, msg string)) {
+	for _, t := range tunnels {
+		if t.UUID != savedUUID {
+			continue
+		}
+		if strings.EqualFold(t.Status, "revoked") {
+			fail("Tunnel active", "this tunnel is REVOKED — run `qase-tunnel reset` then `qase-tunnel start -a <token>`, and re-select the new tunnel in your Environment")
+			return
+		}
+		detail := t.Status
+		if t.LastSeenAt != "" {
+			detail += ", last seen " + t.LastSeenAt
+		}
+		pass("Tunnel active", detail)
+		return
+	}
+	fail("Tunnel active", "your saved tunnel UUID is not on this account anymore — run `qase-tunnel reset` then `start`, and re-select the new tunnel in your Environment")
+}
+
+func dialReachable(ctx context.Context, d *Deps, addr string) error {
+	dial := d.DialContext
+	if dial == nil {
+		dial = (&net.Dialer{Timeout: 5 * time.Second}).DialContext
+	}
+	dctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	conn, err := dial(dctx, "tcp", addr)
+	if err != nil {
+		return err
+	}
+	_ = conn.Close()
+	return nil
+}
+
+// targetHostPort extracts host:port from a URL or bare host[:port], defaulting
+// the port to 443 (https/unspecified) or 80 (http).
+func targetHostPort(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		// Bare host[:port] — re-parse with a scheme so url.Parse populates Host.
+		u, err = url.Parse("//" + raw)
+		if err != nil || u.Host == "" {
+			return "", fmt.Errorf("could not determine host")
+		}
+	}
+	host := u.Hostname()
+	if host == "" {
+		return "", fmt.Errorf("could not determine host")
+	}
+	port := u.Port()
+	if port == "" {
+		if u.Scheme == "http" {
+			port = "80"
+		} else {
+			port = "443"
+		}
+	}
+	return net.JoinHostPort(host, port), nil
+}
+
+func mark(w io.Writer, ok bool) string {
+	if ok {
+		return styled(w, ansiGreen, "✓")
+	}
+	return styled(w, ansiRed, "✗")
+}
+
 func persist(d *Deps, token string, t api.Tunnel, tr frpc.Transport) error {
 	for _, kv := range [...]struct{ k, v string }{
 		{KeyAPIToken, token},
@@ -360,6 +560,7 @@ const (
 	ansiCyan  = "\x1b[36m"
 	ansiDim   = "\x1b[2m"
 	ansiGreen = "\x1b[32m"
+	ansiRed   = "\x1b[31m"
 )
 
 func styled(w io.Writer, code, text string) string {

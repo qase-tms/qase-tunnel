@@ -25,6 +25,13 @@ func serverAddr() string {
 	return buildinfo.FrpsServer
 }
 
+// FrpsAddr returns the frps server host and port for the given transport.
+// Exposed for diagnostics, which TCP-dial it to verify the tunnel server is
+// reachable from the customer's network.
+func FrpsAddr(tr Transport) (host string, port int) {
+	return serverAddr(), serverPortFor(tr)
+}
+
 func serverPortFor(tr Transport) int {
 	override := buildinfo.FrpsTCPPort
 	def := defaultTCPPort

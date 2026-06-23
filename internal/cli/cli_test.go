@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -48,8 +49,10 @@ func (r *recordingRunner) snapshot() []frpc.Inputs {
 }
 
 type fakeRegistrar struct {
-	calls   int
-	results []registerResult
+	calls     int
+	results   []registerResult
+	listItems []api.TunnelListItem
+	listErr   error
 }
 
 type registerResult struct {
@@ -69,8 +72,9 @@ func (f *fakeRegistrar) RegisterTunnel(_ context.Context, _ string) (api.Tunnel,
 
 // ListTunnels reports zero tunnels by default so legacy tests that don't
 // pre-seed a keystore UUID still hit the register branch in acquireTunnel.
+// Diagnose tests set listItems/listErr to script specific responses.
 func (f *fakeRegistrar) ListTunnels(_ context.Context, _ string) ([]api.TunnelListItem, error) {
-	return nil, nil
+	return f.listItems, f.listErr
 }
 
 func (f *fakeRegistrar) RotateTunnel(_ context.Context, _, _ string) (api.Tunnel, error) {
@@ -355,11 +359,121 @@ func TestReset_ThenDefaultRetriggersWizard(t *testing.T) {
 	assert.Equal(t, "new-token-1234567890", tok)
 }
 
-func TestDiagnose_PlaceholderReturnsZero(t *testing.T) {
-	deps, out, _ := newDeps(&fakeRegistrar{}, keystore.NewMemoryKeystore(), nil)
-	code := Run(context.Background(), []string{"diagnose"}, deps)
-	assert.Equal(t, ExitOK, code)
-	assert.Contains(t, strings.ToLower(out.String()), "diagnose")
+const diagUUID = "f572519f-e50d-4a8f-a68f-195c7a165fbb"
+
+func okDialer() func(context.Context, string, string) (net.Conn, error) {
+	return func(context.Context, string, string) (net.Conn, error) {
+		c, _ := net.Pipe()
+		return c, nil
+	}
+}
+
+func failDialerFor(substr string) func(context.Context, string, string) (net.Conn, error) {
+	return func(_ context.Context, _, addr string) (net.Conn, error) {
+		if strings.Contains(addr, substr) {
+			return nil, errors.New("connection refused")
+		}
+		c, _ := net.Pipe()
+		return c, nil
+	}
+}
+
+func fullKS(uuid string) *keystore.MemoryKeystore {
+	ks := keystore.NewMemoryKeystore()
+	_ = ks.Set(KeyAPIToken, "tok-1234567890abcdef")
+	_ = ks.Set(KeyTunnelUUID, uuid)
+	_ = ks.Set(KeyAgentName, "tunnel-f572519f")
+	_ = ks.Set(KeyStcpSecret, "secret-base64-xyz")
+	_ = ks.Set(KeyTransport, "tcp")
+	return ks
+}
+
+func diagDeps(reg *fakeRegistrar, ks keystore.Keystore, dial func(context.Context, string, string) (net.Conn, error)) (Deps, *bytes.Buffer) {
+	out := &bytes.Buffer{}
+	return Deps{APIClient: reg, Keystore: ks, Stdout: out, Stderr: &bytes.Buffer{}, DialContext: dial}, out
+}
+
+func activeListItem() api.TunnelListItem {
+	return api.TunnelListItem{UUID: diagUUID, AgentName: "tunnel-f572519f", Status: "active", LastSeenAt: "2026-06-23T00:00:00Z"}
+}
+
+func TestDiagnose(t *testing.T) {
+	t.Run("all checks pass", func(t *testing.T) {
+		reg := &fakeRegistrar{listItems: []api.TunnelListItem{activeListItem()}}
+		deps, out := diagDeps(reg, fullKS(diagUUID), okDialer())
+		code := Run(context.Background(), []string{"diagnose"}, deps)
+		assert.Equal(t, ExitOK, code)
+		body := out.String()
+		assert.Contains(t, body, "All checks passed")
+		assert.NotContains(t, body, "✗")
+	})
+
+	t.Run("-a flag is accepted (regression: used to error)", func(t *testing.T) {
+		reg := &fakeRegistrar{listItems: []api.TunnelListItem{activeListItem()}}
+		ks := fullKS(diagUUID)
+		_ = ks.Delete(KeyAPIToken) // force the flag path
+		deps, out := diagDeps(reg, ks, okDialer())
+		code := Run(context.Background(), []string{"diagnose", "-a", "tok-from-flag-123456"}, deps)
+		assert.NotEqual(t, ExitUsage, code)
+		body := out.String()
+		assert.Contains(t, body, "from -a flag")
+		assert.NotContains(t, body, "unknown shorthand flag")
+	})
+
+	t.Run("revoked tunnel fails with reset hint", func(t *testing.T) {
+		reg := &fakeRegistrar{listItems: []api.TunnelListItem{{UUID: diagUUID, Status: "revoked"}}}
+		deps, out := diagDeps(reg, fullKS(diagUUID), okDialer())
+		code := Run(context.Background(), []string{"diagnose"}, deps)
+		assert.Equal(t, ExitGeneric, code)
+		body := out.String()
+		assert.Contains(t, body, "REVOKED")
+		assert.Contains(t, body, "Some checks failed")
+	})
+
+	t.Run("uuid not on account fails", func(t *testing.T) {
+		reg := &fakeRegistrar{listItems: []api.TunnelListItem{}} // valid token, but tunnel not present
+		deps, out := diagDeps(reg, fullKS(diagUUID), okDialer())
+		code := Run(context.Background(), []string{"diagnose"}, deps)
+		assert.Equal(t, ExitGeneric, code)
+		assert.Contains(t, out.String(), "not on this account")
+	})
+
+	t.Run("token rejected", func(t *testing.T) {
+		reg := &fakeRegistrar{listErr: api.ErrUnauthorized}
+		deps, out := diagDeps(reg, fullKS(diagUUID), okDialer())
+		code := Run(context.Background(), []string{"diagnose"}, deps)
+		assert.Equal(t, ExitGeneric, code)
+		assert.Contains(t, out.String(), "token rejected")
+	})
+
+	t.Run("no saved config", func(t *testing.T) {
+		deps, out := diagDeps(&fakeRegistrar{}, keystore.NewMemoryKeystore(), okDialer())
+		code := Run(context.Background(), []string{"diagnose"}, deps)
+		assert.Equal(t, ExitGeneric, code)
+		body := out.String()
+		assert.Contains(t, body, "no token available")
+		assert.Contains(t, body, "no tunnel saved")
+	})
+
+	t.Run("frps unreachable", func(t *testing.T) {
+		reg := &fakeRegistrar{listItems: []api.TunnelListItem{activeListItem()}}
+		deps, out := diagDeps(reg, fullKS(diagUUID), failDialerFor("frps"))
+		code := Run(context.Background(), []string{"diagnose"}, deps)
+		assert.Equal(t, ExitGeneric, code)
+		body := out.String()
+		assert.Contains(t, body, "Tunnel server reachable")
+		assert.Contains(t, body, "egress firewall")
+	})
+
+	t.Run("target unreachable from this machine", func(t *testing.T) {
+		reg := &fakeRegistrar{listItems: []api.TunnelListItem{activeListItem()}}
+		deps, out := diagDeps(reg, fullKS(diagUUID), failDialerFor("internal.example.com"))
+		code := Run(context.Background(), []string{"diagnose", "--target", "https://internal.example.com/login"}, deps)
+		assert.Equal(t, ExitGeneric, code)
+		body := out.String()
+		assert.Contains(t, body, "Target reachable from this machine")
+		assert.Contains(t, body, "THROUGH this machine")
+	})
 }
 
 func TestStart_InvokesTunnelRunnerWithRegisteredCredentials(t *testing.T) {

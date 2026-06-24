@@ -10,6 +10,13 @@
 #
 # Override the pinned upstream version with `FRP_VERSION=0.x.y` if you need
 # to bump.
+#
+# INVARIANT: this version MUST match the frpc the relay runs as the stcp
+# *visitor* (qase-services: services/tunnel-relay/Dockerfile,
+# `snowdreamtech/frpc:<ver>`). The two are opposite ends of one stcp tunnel;
+# frp changed the stcp stream encryption in 0.69, so a version skew lets the
+# control channel connect but silently resets the data path
+# (ERR_TUNNEL_CONNECTION_FAILED). Bump both, or neither.
 
 set -euo pipefail
 
